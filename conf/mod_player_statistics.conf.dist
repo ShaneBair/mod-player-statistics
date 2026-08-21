@@ -1,0 +1,28 @@
+#
+# Player Statistics event logger
+#
+
+# Master switch
+PlayerStatistics.Enable = 1
+
+# Realm identifier stored with every event. For a normal single-realm setup, 1 is fine.
+PlayerStatistics.RealmId = 1
+
+# Set to 1 if you do not want events generated while a character is in GM mode.
+PlayerStatistics.IgnoreGameMasters = 0
+
+# Core dashboard events. Recommended ON.
+PlayerStatistics.Events.CreatureKills = 1
+PlayerStatistics.Events.PetCreatureKills = 1
+PlayerStatistics.Events.PlayerKilledByCreature = 1
+PlayerStatistics.Events.PvPKills = 1
+PlayerStatistics.Events.LevelChanges = 1
+PlayerStatistics.Events.QuestCompletions = 1
+PlayerStatistics.Events.Achievements = 1
+
+# High-volume events. Recommended OFF until you know you want them.
+# Loot can produce a lot of rows. XP can produce an enormous number of rows.
+# Money includes many small transactions and can also grow quickly.
+PlayerStatistics.Events.LootItems = 0
+PlayerStatistics.Events.ExperienceGains = 0
+PlayerStatistics.Events.MoneyChanges = 0
