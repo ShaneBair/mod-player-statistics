@@ -4,6 +4,14 @@ A generalized AzerothCore event logger intended to feed a player/server statisti
 
 Instead of maintaining a separate table for every statistic, the module writes normalized player-centric events to one append-only table in the **characters database**. Your website can aggregate those events into leaderboards, timelines, records, and server-wide totals.
 
+The module also exposes a live, machine-readable roster of human-controlled characters through the worldserver console and SOAP:
+
+```text
+playerstats online
+```
+
+The command emits one `PLAYERSTATS_ONLINE_V1 ` line followed by compact JSON. It reads current in-memory sessions, includes human-controlled GMs, filters Playerbots with `WorldSession::IsBot()`, and never uses historical events or `characters.online` to infer current control. In-game invocations are rejected even when the account has command permission. The command uses the existing read-only `server info` RBAC permission.
+
 ## What it logs
 
 Enabled by default:
