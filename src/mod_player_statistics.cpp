@@ -46,6 +46,7 @@ struct Settings
 
     bool CreatureKills = true;
     bool PetCreatureKills = true;
+    bool PlayerDeaths = true;
     bool PlayerKilledByCreature = true;
     bool PvPKills = true;
     bool LevelChanges = true;
@@ -292,6 +293,7 @@ void LoadSettings()
 
     gSettings.CreatureKills = sConfigMgr->GetOption<bool>("PlayerStatistics.Events.CreatureKills", true);
     gSettings.PetCreatureKills = sConfigMgr->GetOption<bool>("PlayerStatistics.Events.PetCreatureKills", true);
+    gSettings.PlayerDeaths = sConfigMgr->GetOption<bool>("PlayerStatistics.Events.PlayerDeaths", true);
     gSettings.PlayerKilledByCreature = sConfigMgr->GetOption<bool>("PlayerStatistics.Events.PlayerKilledByCreature", true);
     gSettings.PvPKills = sConfigMgr->GetOption<bool>("PlayerStatistics.Events.PvPKills", true);
     gSettings.LevelChanges = sConfigMgr->GetOption<bool>("PlayerStatistics.Events.LevelChanges", true);
@@ -482,6 +484,7 @@ class PlayerStatisticsPlayerScript : public PlayerScript
 public:
     PlayerStatisticsPlayerScript()
         : PlayerScript("PlayerStatisticsPlayerScript", {
+            PLAYERHOOK_ON_PLAYER_JUST_DIED,
             PLAYERHOOK_ON_PLAYER_COMPLETE_QUEST,
             PLAYERHOOK_ON_PVP_KILL,
             PLAYERHOOK_ON_CREATURE_KILL,
@@ -494,6 +497,23 @@ public:
             PLAYERHOOK_ON_LOOT_ITEM
         })
     {
+    }
+
+    void OnPlayerJustDied(Player* player) override
+    {
+        if (!gSettings.PlayerDeaths)
+            return;
+
+        LogEvent(
+            player,
+            "PLAYER_DEATH",
+            TargetType::None,
+            0,
+            0,
+            false,
+            0,
+            0,
+            "canonical");
     }
 
     void OnPlayerCreatureKill(Player* killer, Creature* killed) override

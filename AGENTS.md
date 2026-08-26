@@ -12,6 +12,7 @@ This repository is a standalone Git root. The parent workspace file may not be l
 - `src/mod_player_statistics_loader.cpp` registers the module script.
 - `conf/mod_player_statistics.conf.dist` defines the supported module settings and safe defaults.
 - `data/sql/db-characters/mod_player_statistics.sql` creates the event table in the characters database.
+- `data/sql/db-characters/upgrade_canonical_player_death_v1.sql` records the immutable death-contract cutover for existing installations.
 - `examples/dashboard_queries.sql` demonstrates intended aggregation and joins.
 - `README.md` documents event meanings, installation, Playerbot behavior, and design rationale.
 
@@ -26,12 +27,13 @@ There is no standalone CMake project or test harness here. The module must be pl
 - `actor_is_bot` and, where applicable, `target_is_bot` use the Playerbots core's `WorldSession::IsBot()` result. Do not replace this with account-name or account-ID heuristics.
 - Creature targets use `target_entry` for `creature_template.entry`; quest, item, and achievement targets use their corresponding entry or ID.
 - Player targets use `target_guid`; PvP `value1` is victim level and `value2` is victim account ID.
+- `PLAYER_DEATH` is victim-owned, has no target or numeric payload in version 1, and uses source `canonical`.
 - Location fields capture the actor's map, instance, zone, and area when the hook runs.
 - `event_time` is assigned by the database with millisecond precision.
 
 Current event types are:
 
-- Default: `CREATURE_KILL`, `CREATURE_KILL_PET`, `PLAYER_KILLED_BY_CREATURE`, `PVP_KILL`, `LEVEL_CHANGE`, `QUEST_COMPLETE`, and `ACHIEVEMENT`.
+- Default: `CREATURE_KILL`, `CREATURE_KILL_PET`, `PLAYER_DEATH`, `PLAYER_KILLED_BY_CREATURE`, `PVP_KILL`, `LEVEL_CHANGE`, `QUEST_COMPLETE`, and `ACHIEVEMENT`.
 - Optional high-volume: `LOOT_ITEM`, `XP_GAIN`, and `MONEY_CHANGE`.
 
 The precise `value1`, `value2`, target, and source meanings are part of the public integration contract. Update the schema, README, configuration, examples, and sibling portal specification together when changing them.
@@ -55,7 +57,6 @@ The precise `value1`, `value2`, target, and source meanings are part of the publ
 - New or changed event payloads require a migration/versioning decision so the portal can distinguish old and new rows.
 - Put fresh-install SQL under `data/sql/db-characters/` and provide a separate, idempotent upgrade path when existing installations need alteration.
 - Do not apply SQL to a live database without explicit authorization.
-- `README.md` currently references `data/sql/db-characters/upgrade_add_bot_flags.sql`, but that file is not present in this checkout. Do not rely on that upgrade path until the documentation or repository is corrected.
 
 ## Specifications
 
@@ -87,4 +88,3 @@ Do not claim compile or gameplay verification when the external AzerothCore envi
 ## Cross-Repository Boundary
 
 The sibling `wow-portal` repository will consume these events for statistics. It must not infer undocumented payload meanings. When an implementation changes the event contract, call out the required portal work explicitly; do not edit the sibling repository unless the active task includes it.
-

@@ -20,7 +20,8 @@ Enabled by default:
 |---|---|---|
 | `CREATURE_KILL` | Player directly killed a creature | NPC kills, favorite victim, total kills |
 | `CREATURE_KILL_PET` | Player's pet killed a creature | Same, while attributing the kill to the owner |
-| `PLAYER_KILLED_BY_CREATURE` | Creature killed a player | Deadliest NPCs, player deaths |
+| `PLAYER_DEATH` | Player died from any cause; actor is the dead player | Canonical total deaths |
+| `PLAYER_KILLED_BY_CREATURE` | Creature killed a player | Deadliest NPCs, NPC death details |
 | `PVP_KILL` | Player killed another player | PvP leaderboard, rivalries |
 | `LEVEL_CHANGE` | Character changed level | Level history, leveling timeline |
 | `QUEST_COMPLETE` | Character completed a quest | Quest totals, activity |
@@ -40,6 +41,7 @@ For example:
 
 - A player kills Hogger: actor = player, target = Hogger creature entry.
 - Hogger kills a player: actor = player who died, target = Hogger creature entry.
+- A player dies from any cause: `PLAYER_DEATH` actor = player who died, target = none, source = `canonical`.
 - A hunter pet kills a wolf: actor = hunter, target = wolf, source = `pet`.
 - A player kills another player: actor = killer, target GUID = victim.
 
@@ -49,6 +51,7 @@ For example:
 |---|---:|---:|
 | `CREATURE_KILL` | creature level | 0 |
 | `CREATURE_KILL_PET` | creature level | 0 |
+| `PLAYER_DEATH` | 0 (reserved for a future versioned cause code) | 0 (reserved) |
 | `PLAYER_KILLED_BY_CREATURE` | creature level | 0 |
 | `PVP_KILL` | victim level | victim account ID |
 | `LEVEL_CHANGE` | old level | new level |
@@ -70,13 +73,13 @@ For example:
    data/sql/db-characters/mod_player_statistics.sql
    ```
 
-   If your normal AzerothCore/module database assembler picks up module SQL, you can use that instead. The important part is that `mod_player_stats_events` exists in the **characters DB** before starting the server.
+   If your normal AzerothCore/module database assembler picks up module SQL, you can use that instead. The important part is that both `mod_player_stats_events` and `mod_player_stats_migrations` exist in the **characters DB** before starting the server. A fresh install records `canonical_player_death_v1` with cutoff event ID `0`.
 
 3. Reconfigure/rebuild AzerothCore exactly as you do for your other compiled modules.
 
 4. Copy/merge `conf/mod_player_statistics.conf.dist` into your module config setup. AzerothCore's normal module config handling should load the `.conf` generated from the `.conf.dist` file.
 
-5. Start `worldserver` and kill a creature with a character.
+5. Start `worldserver`, kill a creature with a character, and produce one controlled player death.
 
 6. Verify:
 
@@ -87,17 +90,27 @@ For example:
    LIMIT 20;
    ```
 
-You should see a `CREATURE_KILL` row immediately after a normal player creature kill.
+You should see a `CREATURE_KILL` row after the creature kill and exactly one `PLAYER_DEATH` row owned by the character who died.
 
-### Upgrading from the first module version
+### Upgrading an existing installation for canonical deaths
 
-If you already created `mod_player_stats_events` using the original schema, run:
+Use the additive, idempotent migration:
 
 ```text
-data/sql/db-characters/upgrade_add_bot_flags.sql
+data/sql/db-characters/upgrade_canonical_player_death_v1.sql
 ```
 
-Do not run that upgrade script on a fresh install because the main schema already contains both bot columns. Existing historical rows default to `actor_is_bot = 0`; only newly logged events can be reliably classified automatically.
+The upgrade must be performed in this order:
+
+1. Stop `worldserver` cleanly and back up the characters database.
+2. Apply the upgrade SQL while no event rows can be written.
+3. Build and deploy this module version.
+4. Start `worldserver`, confirm configuration and SQL load cleanly, and verify controlled deaths.
+5. Deploy the compatible portal query only after module verification.
+
+The migration captures the current maximum event ID once. Rerunning it preserves the original cutoff and timestamp. Do not run it while `worldserver` is active, do not advance the cutoff manually, and do not synthesize historical `PLAYER_DEATH` rows.
+
+This checkout does not include the previously documented `upgrade_add_bot_flags.sql`. Installations old enough to lack `actor_is_bot` or `target_is_bot` must reconcile those columns with the current fresh-install schema separately before deploying this version.
 
 ## Website/database design notes
 
@@ -110,14 +123,19 @@ The event table deliberately stores IDs rather than copying display names into e
 - `target_entry` for creature events joins to the world DB `creature_template.entry`.
 - `target_entry` for quest/item/achievement events is their corresponding entry/ID.
 - `map_id`, `zone_id`, `area_id`, and `instance_id` allow geographic and dungeon/raid statistics later.
+- `mod_player_stats_migrations` records immutable event-contract cutovers used by consumers.
 
 This keeps the logging path simple and allows character/NPC names to change without rewriting historical data.
 
-See `examples/dashboard_queries.sql` for ready-to-use examples.
+For total deaths, use the `canonical_player_death_v1` cutoff: count legacy `PLAYER_KILLED_BY_CREATURE` and `PVP_KILL` facts only at or below the cutoff, then count only victim-owned `PLAYER_DEATH` facts above it. Specialized death events above the cutoff remain detail facts and must not be added to total deaths. Historical environmental deaths are unknowable and are intentionally not reconstructed.
+
+`PLAYER_DEATH` version 1 has no killer or exact cause. Its target fields, `target_is_bot`, `value1`, and `value2` are zero, and its source is `canonical`. Disabling `PlayerStatistics.Events.PlayerDeaths` makes total-death statistics incomplete; it is independent of the creature- and PvP-detail settings.
+
+See `examples/dashboard_queries.sql` for canonical-only and legacy-cutover-aware examples.
 
 ## Recommended starting configuration
 
-Keep the seven default events enabled and leave loot/XP/money disabled at first. The default events are relatively low-volume and cover most of the fun statistics we discussed. XP in particular can create a very large event table because it can fire constantly while players level.
+Keep the eight default events enabled and leave loot/XP/money disabled at first. The default events are relatively low-volume and cover most of the fun statistics we discussed. Keep canonical player deaths enabled for complete totals. XP in particular can create a very large event table because it can fire constantly while players level.
 
 ## Playerbots
 

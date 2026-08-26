@@ -33,3 +33,15 @@ CREATE TABLE IF NOT EXISTS `mod_player_stats_events` (
     KEY `idx_account_event_time` (`actor_account_id`, `event_type`, `event_time`),
     KEY `idx_target_event_time` (`target_entry`, `event_type`, `event_time`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `mod_player_stats_migrations` (
+    `migration_key` VARCHAR(64) NOT NULL,
+    `cutoff_event_id` BIGINT UNSIGNED NOT NULL,
+    `applied_at` TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    PRIMARY KEY (`migration_key`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+INSERT IGNORE INTO `mod_player_stats_migrations`
+    (`migration_key`, `cutoff_event_id`)
+VALUES
+    ('canonical_player_death_v1', 0);

@@ -14,6 +14,8 @@ PlayerStatistics.IgnoreGameMasters = 0
 # Core dashboard events. Recommended ON.
 PlayerStatistics.Events.CreatureKills = 1
 PlayerStatistics.Events.PetCreatureKills = 1
+# Canonical total-death event. Disabling this makes total-death statistics incomplete.
+PlayerStatistics.Events.PlayerDeaths = 1
 PlayerStatistics.Events.PlayerKilledByCreature = 1
 PlayerStatistics.Events.PvPKills = 1
 PlayerStatistics.Events.LevelChanges = 1

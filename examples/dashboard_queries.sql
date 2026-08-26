@@ -13,6 +13,12 @@
 --   AND e.actor_is_bot = 0   -- humans only
 --   AND e.actor_is_bot = 1   -- bots only
 -- Omit the predicate for combined server totals.
+--
+-- TOTAL DEATHS
+-- Never total every death-shaped event together. For fresh post-cutover data,
+-- PLAYER_DEATH is canonical. For lifetime totals on upgraded installations,
+-- use the cutover-aware query below: specialized rows are legacy totals only
+-- at or below the immutable canonical_player_death_v1 cutoff.
 
 -- ---------------------------------------------------------------------------
 -- 1. Top characters by total NPC kills (direct + pet kills)
@@ -72,6 +78,7 @@ LIMIT 25;
 
 -- ---------------------------------------------------------------------------
 -- 5. Characters with the most deaths to NPCs
+-- This is a creature-cause detail query, not a comprehensive death total.
 -- ---------------------------------------------------------------------------
 SELECT
     e.actor_guid,
@@ -82,6 +89,78 @@ LEFT JOIN characters c ON c.guid = e.actor_guid
 WHERE e.event_type = 'PLAYER_KILLED_BY_CREATURE'
 GROUP BY e.actor_guid, c.name
 ORDER BY npc_deaths DESC
+LIMIT 25;
+
+-- ---------------------------------------------------------------------------
+-- 5a. Canonical player deaths since the contract cutover
+-- ---------------------------------------------------------------------------
+SELECT
+    e.actor_guid,
+    c.name AS character_name,
+    e.actor_is_bot,
+    COUNT(*) AS deaths_since_cutover
+FROM mod_player_stats_events e
+JOIN mod_player_stats_migrations m
+    ON m.migration_key = 'canonical_player_death_v1'
+LEFT JOIN characters c ON c.guid = e.actor_guid
+WHERE e.event_type = 'PLAYER_DEATH'
+  AND e.id > m.cutoff_event_id
+GROUP BY e.actor_guid, c.name, e.actor_is_bot
+ORDER BY deaths_since_cutover DESC
+LIMIT 25;
+
+-- ---------------------------------------------------------------------------
+-- 5b. Cutover-aware lifetime death totals
+--
+-- Before the cutoff, known NPC deaths are actor-owned while PvP deaths store
+-- the victim in target fields. After the cutoff, only PLAYER_DEATH contributes
+-- to totals; specialized rows remain detail facts and are intentionally omitted.
+-- Historical environmental deaths cannot be reconstructed.
+-- ---------------------------------------------------------------------------
+WITH death_facts AS (
+    SELECT
+        e.actor_guid,
+        e.actor_account_id,
+        e.actor_is_bot
+    FROM mod_player_stats_events e
+    JOIN mod_player_stats_migrations m
+        ON m.migration_key = 'canonical_player_death_v1'
+    WHERE e.event_type = 'PLAYER_DEATH'
+      AND e.id > m.cutoff_event_id
+
+    UNION ALL
+
+    SELECT
+        e.actor_guid,
+        e.actor_account_id,
+        e.actor_is_bot
+    FROM mod_player_stats_events e
+    JOIN mod_player_stats_migrations m
+        ON m.migration_key = 'canonical_player_death_v1'
+    WHERE e.event_type = 'PLAYER_KILLED_BY_CREATURE'
+      AND e.id <= m.cutoff_event_id
+
+    UNION ALL
+
+    SELECT
+        e.target_guid AS actor_guid,
+        CAST(e.value2 AS UNSIGNED) AS actor_account_id,
+        e.target_is_bot AS actor_is_bot
+    FROM mod_player_stats_events e
+    JOIN mod_player_stats_migrations m
+        ON m.migration_key = 'canonical_player_death_v1'
+    WHERE e.event_type = 'PVP_KILL'
+      AND e.id <= m.cutoff_event_id
+)
+SELECT
+    d.actor_guid,
+    c.name AS character_name,
+    d.actor_is_bot,
+    COUNT(*) AS known_lifetime_deaths
+FROM death_facts d
+LEFT JOIN characters c ON c.guid = d.actor_guid
+GROUP BY d.actor_guid, c.name, d.actor_is_bot
+ORDER BY known_lifetime_deaths DESC
 LIMIT 25;
 
 -- ---------------------------------------------------------------------------
