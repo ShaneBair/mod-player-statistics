@@ -110,6 +110,16 @@ The upgrade must be performed in this order:
 
 The migration captures the current maximum event ID once. Rerunning it preserves the original cutoff and timestamp. Do not run it while `worldserver` is active, do not advance the cutoff manually, and do not synthesize historical `PLAYER_DEATH` rows.
 
+Do not use the fresh-install schema as the canonical-death upgrade migration on a populated event table. The fresh schema now seeds cutoff zero only when the event table is empty, so an accidental import fails safely by leaving the migration row absent instead of hiding legacy deaths.
+
+If an earlier fresh-schema import already created `canonical_player_death_v1` with cutoff zero on a populated event table, stop `worldserver`, back up the characters database, and apply:
+
+```text
+data/sql/db-characters/repair_canonical_player_death_v1_zero_cutoff.sql
+```
+
+The repair derives the candidate cutoff from events recorded no later than the migration row's original `applied_at`. It changes only a zero cutoff with a nonzero candidate and no canonical `PLAYER_DEATH` row at or below that candidate. A legitimate fresh install and any ambiguous database remain unchanged.
+
 This checkout does not include the previously documented `upgrade_add_bot_flags.sql`. Installations old enough to lack `actor_is_bot` or `target_is_bot` must reconcile those columns with the current fresh-install schema separately before deploying this version.
 
 ## Website/database design notes

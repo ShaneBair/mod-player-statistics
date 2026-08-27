@@ -43,5 +43,10 @@ CREATE TABLE IF NOT EXISTS `mod_player_stats_migrations` (
 
 INSERT IGNORE INTO `mod_player_stats_migrations`
     (`migration_key`, `cutoff_event_id`)
-VALUES
-    ('canonical_player_death_v1', 0);
+SELECT
+    'canonical_player_death_v1',
+    0
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM `mod_player_stats_events`
+);

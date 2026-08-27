@@ -130,6 +130,8 @@ cutoff_event_id = 0
 applied_at      = schema installation time
 ```
 
+The fresh-install insert is conditional on `mod_player_stats_events` being empty. If the fresh schema is accidentally applied to an existing populated event table, it must leave the migration row absent so the existing-install migration can capture the correct maximum ID.
+
 Provide a separate idempotent upgrade SQL file for existing installations. It must:
 
 1. create `mod_player_stats_migrations` if absent;
@@ -159,6 +161,18 @@ For an existing server, the safe order is mandatory:
 7. Deploy the compatible portal query only after module verification.
 
 If the server cannot be stopped, do not guess a cutoff and do not deploy this contract.
+
+### Recovery from a pre-seeded zero cutoff
+
+An older fresh-install schema could insert `canonical_player_death_v1` with cutoff zero on a populated event table. The existing-install migration then preserved that row because its idempotence contract used `INSERT IGNORE`. Consumers consequently excluded every legacy specialized death even though the event rows remained intact.
+
+The guarded recovery migration `data/sql/db-characters/repair_canonical_player_death_v1_zero_cutoff.sql` derives a candidate cutoff as the greatest event ID whose `event_time` is no later than the migration row's original `applied_at`. It updates the row only when:
+
+- the current cutoff is zero;
+- the candidate is nonzero; and
+- no canonical `PLAYER_DEATH` row has an ID at or below the candidate.
+
+Run the recovery only with `worldserver` stopped and after backing up the characters database. It is idempotent. A genuine fresh install has no event at or before `applied_at` and remains at zero. A database containing canonical events at or below the inferred boundary is ambiguous and remains unchanged for manual review.
 
 ## Schema and Index Impact
 
@@ -240,8 +254,11 @@ Remove or correct the README reference to the missing bot-flag upgrade file whil
 - The dead character owns actor fields and location.
 - Human, human GM, altbot, and random-bot control flags follow the accepted settings and `IsBot()` behavior.
 - `PlayerStatistics.Events.PlayerDeaths` independently enables/disables the event.
-- Fresh schema creates the cutover metadata with cutoff zero.
+- Fresh schema creates the cutover metadata with cutoff zero only when the event table is empty.
+- Fresh schema leaves the migration row absent when the event table is already populated.
 - Existing-install migration captures the current maximum event ID once and is idempotent.
+- The zero-cutoff recovery repairs only an unambiguous pre-seeded row and is idempotent.
+- The zero-cutoff recovery leaves legitimate fresh installs and ambiguous boundaries unchanged.
 - No existing event row is changed or deleted.
 - Existing specialized events continue to work.
 - Documentation and example queries explain canonical totals and the legacy cutoff.
@@ -255,6 +272,8 @@ Remove or correct the README reference to the missing bot-flag upgrade file whil
 3. Compile the module inside that core with warnings treated according to the normal Dad's MMO Lab build.
 4. Apply fresh and upgrade SQL to disposable databases.
 5. Run the upgrade twice and confirm cutoff ID and applied timestamp do not change.
+6. Apply the fresh schema to a populated disposable event table and confirm it does not seed a zero-cutoff migration row.
+7. Verify the recovery migration repairs a pre-seeded zero cutoff, remains unchanged on rerun, and refuses both a legitimate fresh-install zero and a boundary containing canonical rows.
 
 ### In-Game Verification
 

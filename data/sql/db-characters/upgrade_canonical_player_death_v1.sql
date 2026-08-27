@@ -13,3 +13,7 @@ SELECT
     'canonical_player_death_v1',
     COALESCE(MAX(`id`), 0)
 FROM `mod_player_stats_events`;
+
+-- If a previous fresh-schema import already created this migration row with a
+-- zero cutoff on a populated event table, apply the separately guarded repair:
+-- repair_canonical_player_death_v1_zero_cutoff.sql
