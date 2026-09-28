@@ -323,9 +323,10 @@ uint32 GetAccountId(Player const* player)
 
 bool IsBot(Player const* player)
 {
-    // The AzerothCore Playerbots fork marks bot-controlled sessions explicitly.
-    // This covers both altbots and random bots without relying on account IDs.
-    return player && player->GetSession() && player->GetSession()->IsBot();
+    // The AzerothCore Playerbots test-staging core represents bot-controlled
+    // sessions as headless (socketless) sessions. This covers both altbots and
+    // random bots without relying on account IDs.
+    return player && player->GetSession() && player->GetSession()->IsHeadless();
 }
 
 void LogEvent(
@@ -426,7 +427,7 @@ private:
             handler->DoForAllValidSessions([&players](Player* player)
             {
                 WorldSession* session = player ? player->GetSession() : nullptr;
-                if (!session || session->IsBot())
+                if (!session || session->IsHeadless())
                     return;
 
                 std::string accountLogin;

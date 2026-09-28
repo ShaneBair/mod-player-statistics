@@ -26,7 +26,7 @@ Existing known creature and PvP death history remains usable through an explicit
 - It does not subscribe to `PLAYERHOOK_ON_PLAYER_JUST_DIED`.
 - The event table is append-only and has no schema/contract migration metadata.
 - Specialized death events are enabled by default.
-- `actor_is_bot` and `target_is_bot` use `WorldSession::IsBot()`.
+- `actor_is_bot` and `target_is_bot` use `WorldSession::IsHeadless()`.
 - Location and actor metadata are captured by the shared `LogEvent` function.
 
 ## Accepted Design
@@ -57,7 +57,7 @@ For every `PLAYER_DEATH` row:
 | `event_type` | `PLAYER_DEATH` |
 | `actor_account_id` | Account ID of the dead character |
 | `actor_guid` | GUID counter of the dead character |
-| `actor_is_bot` | `WorldSession::IsBot()` for the dead character at death time |
+| `actor_is_bot` | `WorldSession::IsHeadless()` for the dead character at death time |
 | `actor_level` | Dead character's level at death time |
 | `actor_class` | Dead character's class at death time |
 | `actor_race` | Dead character's race at death time |
@@ -227,7 +227,7 @@ Remove or correct the README reference to the missing bot-flag upgrade file whil
 
 - Do not store character names, account logins, credentials, IP addresses, coordinates, or chat/combat text in death events.
 - Use existing numeric identifiers and coarse location IDs.
-- `actor_is_bot` uses only `WorldSession::IsBot()`.
+- `actor_is_bot` uses only `WorldSession::IsHeadless()`.
 - Do not log complete event rows during normal operation.
 - Database writes continue through the normal asynchronous characters-database worker path.
 - The migration is additive and must not delete, rewrite, or backfill existing event rows.
@@ -252,7 +252,7 @@ Remove or correct the README reference to the missing bot-flag upgrade file whil
 - Nonlethal environmental damage produces no row.
 - Feign Death, duel defeat, release, resurrection, relog while dead, and repeated save/load produce no row.
 - The dead character owns actor fields and location.
-- Human, human GM, altbot, and random-bot control flags follow the accepted settings and `IsBot()` behavior.
+- Human, human GM, altbot, and random-bot control flags follow the accepted settings and `IsHeadless()` behavior.
 - `PlayerStatistics.Events.PlayerDeaths` independently enables/disables the event.
 - Fresh schema creates the cutover metadata with cutoff zero only when the event table is empty.
 - Fresh schema leaves the migration row absent when the event table is already populated.

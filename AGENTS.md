@@ -24,7 +24,7 @@ There is no standalone CMake project or test harness here. The module must be pl
 
 - The actor is always the player whose statistics are being recorded.
 - `actor_guid` is the character GUID counter; `actor_account_id` supports account-level aggregation.
-- `actor_is_bot` and, where applicable, `target_is_bot` use the Playerbots core's `WorldSession::IsBot()` result. Do not replace this with account-name or account-ID heuristics.
+- `actor_is_bot` and, where applicable, `target_is_bot` use the Playerbots test-staging core's `WorldSession::IsHeadless()` result. Do not replace this with account-name or account-ID heuristics.
 - Creature targets use `target_entry` for `creature_template.entry`; quest, item, and achievement targets use their corresponding entry or ID.
 - Player targets use `target_guid`; PvP `value1` is victim level and `value2` is victim account ID.
 - `PLAYER_DEATH` is victim-owned, has no target or numeric payload in version 1, and uses source `canonical`.

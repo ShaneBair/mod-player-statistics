@@ -10,7 +10,7 @@ The module also exposes a live, machine-readable roster of human-controlled char
 playerstats online
 ```
 
-The command emits one `PLAYERSTATS_ONLINE_V1 ` line followed by compact JSON. It reads current in-memory sessions, includes human-controlled GMs, filters Playerbots with `WorldSession::IsBot()`, and never uses historical events or `characters.online` to infer current control. In-game invocations are rejected even when the account has command permission. The command uses the existing read-only `server info` RBAC permission.
+The command emits one `PLAYERSTATS_ONLINE_V1 ` line followed by compact JSON. It reads current in-memory sessions, includes human-controlled GMs, filters Playerbots with `WorldSession::IsHeadless()`, and never uses historical events or `characters.online` to infer current control. In-game invocations are rejected even when the account has command permission. The command uses the existing read-only `server info` RBAC permission.
 
 ## What it logs
 
@@ -149,7 +149,7 @@ Keep the eight default events enabled and leave loot/XP/money disabled at first.
 
 ## Playerbots
 
-Playerbot activity is intentionally logged. The module uses the Playerbots AzerothCore fork's `WorldSession::IsBot()` flag, so both altbots and random bots are tagged without relying on account naming conventions or hard-coded account ranges.
+Playerbot activity is intentionally logged. The module uses the Playerbots AzerothCore test-staging core's authoritative `WorldSession::IsHeadless()` session flag, so both altbots and random bots are tagged without relying on account naming conventions or hard-coded account ranges.
 
 - `actor_is_bot = 0`: human-controlled character
 - `actor_is_bot = 1`: Playerbot-controlled character
@@ -157,7 +157,7 @@ Playerbot activity is intentionally logged. The module uses the Playerbots Azero
 
 This means the website can show combined server totals while still offering Human Only and Bots Only views. Example filters are included in `examples/dashboard_queries.sql`.
 
-This implementation targets the custom AzerothCore Playerbot branch used by `mod-playerbots`, because `WorldSession::IsBot()` is part of that Playerbot core.
+This implementation targets the custom AzerothCore Playerbots test-staging branch used by `mod-playerbots`, where bot-controlled sessions are headless and identified by `WorldSession::IsHeadless()`.
 
 ## Why damage is not logged here
 

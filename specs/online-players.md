@@ -1,14 +1,14 @@
 # Online Human Players: AzerothCore Roster Contract
 
 Status: Implemented; target-core and in-game verification pending  
-Depends on: Playerbots-compatible AzerothCore branch with `WorldSession::IsBot()`  
+Depends on: Playerbots-compatible AzerothCore test-staging branch with `WorldSession::IsHeadless()`
 Consumer: `wow-portal/specs/online-players.md`
 
 ## Problem
 
 The portal needs a current roster of real people who are logged into the game. AzerothCore's normal online character state does not express whether the active session is controlled by a person or Playerbots. Historical statistics also cannot determine how a character is controlled in its current session.
 
-The module must provide a live, read-only roster sourced from in-memory AzerothCore sessions and filtered using the Playerbots branch's authoritative `WorldSession::IsBot()` flag.
+The module must provide a live, read-only roster sourced from in-memory AzerothCore sessions and filtered using the Playerbots branch's authoritative `WorldSession::IsHeadless()` flag.
 
 ## User Outcome
 
@@ -25,7 +25,7 @@ Random bots and altbots running under bot control never appear.
 
 ## Current Behavior
 
-`mod-player-statistics` records append-only gameplay events in the characters database. It tags recorded actors and applicable targets with `IsBot()`, but it has no live-roster command or presence table.
+`mod-player-statistics` records append-only gameplay events in the characters database. It tags recorded actors and applicable targets using the session's headless flag, but it has no live-roster command or presence table.
 
 The existing event table is not suitable for online presence because events are historical and a character can be human-controlled in one session and bot-controlled in another.
 
@@ -50,14 +50,14 @@ Include one row for every active session for which all of the following are true
 - the session exists;
 - the session has a `Player`;
 - the player is fully in the world;
-- `session->IsBot()` is `false`.
+- `session->IsHeadless()` is `false`.
 
 Additional rules:
 
 - Human-controlled GMs are included and treated like other players.
 - GM mode, GM visibility, security level, faction, and account type do not otherwise affect inclusion.
 - Random bots are excluded.
-- Altbots are excluded while their session reports `IsBot() == true`, even when their account belongs to a real person.
+- Altbots are excluded while their session reports `IsHeadless() == true`, even when their account belongs to a real person.
 - If one person has multiple human-controlled sessions online, return one row per character session.
 - A session at character selection is not included because it has no in-world player.
 - Do not infer bot status from account names, account IDs, character names, or historical events.
@@ -146,7 +146,7 @@ If an account login cannot be resolved, omit that session from the successful ro
 - Iterate the live session/player collection using the locking or world-thread conventions of the exact target core revision.
 - Do not persist, heartbeat, or periodically update a presence table.
 - Do not scan the event table.
-- The expected server is small, but work should remain linear in active sessions and avoid per-bot account lookups by filtering `IsBot()` first.
+- The expected server is small, but work should remain linear in active sessions and avoid per-bot account lookups by filtering `IsHeadless()` first.
 - The portal will cache successful responses, but correctness must not depend on that cache.
 
 ## Configuration
@@ -176,7 +176,7 @@ No new module configuration is required for version 1. Installing the module and
 - `playerstats online` returns one valid `PLAYERSTATS_ONLINE_V1` payload through the worldserver console and SOAP.
 - A normal human player appears with correct account, character, race, class, level, and friendly location values.
 - A human GM appears under the same rules.
-- Random bots and altbots with `IsBot() == true` do not appear.
+- Random bots and altbots with `IsHeadless() == true` do not appear.
 - A character-selection session does not appear.
 - Logging out removes the player from the next command response without waiting for a database cleanup job.
 - Changing level or zone is reflected in the next command response.
